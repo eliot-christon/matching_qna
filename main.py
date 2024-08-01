@@ -139,17 +139,19 @@ class MatchMatrix:
                 column = [row[j] for row in self.__matrix]
                 if element == max(row) and element > 0:
                     couples.append((i, j))
-                    if column.count(max(row)) > 1 and j not in duplicate_a_couples:
-                        if invert_duplicates:
-                            duplicate_a_couples[i] = [j for j, e in enumerate(row) if e == max(row)]
-                        else:
-                            duplicate_a_couples[j] = [i for i, e in enumerate(column) if e == max(row)]
+                    if (not invert_duplicates) and column.count(element) > 1:
+                        duplicate_a_couples[j] = [i for i, e in enumerate(column) if e == max(row)]
+                    elif (invert_duplicates) and row.count(element) > 1:
+                        duplicate_a_couples[i] = [j for j, e in enumerate(row) if e == max(row)]
         
         # remove duplicate couples if len key < 2
+        print("Couples: ", couples)
+        print("Duplicate couples: ", duplicate_a_couples)
         res_duplicate_a_couples = dict()
         for key, value in duplicate_a_couples.items():
             if len(value) >= 2:
                 res_duplicate_a_couples[key] = value
+        print("Res duplicate couples: ", res_duplicate_a_couples)
                                             
         return couples, res_duplicate_a_couples
 
