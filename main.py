@@ -5,7 +5,7 @@ input_str = get_input()
 
 from typing import List, Tuple, Dict
 
-STOP_WORDS = ["a", "ourselves", "about", "out", "above", "over", "after", "own", "again", "same", "against", "shan't", "all", "she", "am", "she'd", "an", "she'll", "and", "she's", "any", "should", "are", "shouldn't", "aren't", "so", "as", "some", "at", "such", "be", "than", "because", "that", "been", "that's", "before", "the", "being", "their", "below", "theirs", "between", "them", "both", "themselves", "but", "then", "by", "there", "can't", "there's", "cannot", "these", "could", "they", "couldn't", "they'd", "did", "they'll", "didn't", "they're", "do", "they've", "does", "this", "doesn't", "those", "doing", "through", "don't", "to", "down", "too", "during", "under", "each", "until", "few", "up", "for", "very", "from", "was", "further", "wasn't", "had", "we", "hadn't", "we'd", "has", "we'll", "hasn't", "we're", "have", "we've", "haven't", "were", "having", "weren't", "he", "what", "he'd", "what's", "he'll", "when", "he's", "when's", "her", "where", "here", "where's", "here's", "which", "hers", "while", "herself", "who", "him", "who's", "himself", "whom", "his", "why", "how", "why's", "how's", "with", "i", "won't", "i'd", "would", "i'll", "wouldn't", "i'm", "you", "i've", "you'd", "if", "you'll", "in", "you're", "into", "you've", "is", "your", "isn't", "yours", "it", "yourself", "it's", "yourselves", "its", "nor", "itself", "not", "let's", "of", "me", "off", "more", "on", "most", "once", "mustn't", "only", "my", "or", "myself", "other", "no", "ought", "ours", "our"]
+STOP_WORDS = ["a", "ourselves", "about", "out", "above", "over", "after", "own", "again", "same", "against", "shan't", "all", "she", "am", "she'd", "an", "she'll", "and", "she's", "any", "should", "are", "shouldn't", "aren't", "so", "as", "some", "at", "such", "be", "than", "because", "that", "been", "that's", "before", "the", "being", "their", "below", "theirs", "between", "them", "both", "themselves", "but", "then", "by", "there", "can't", "there's", "cannot", "these", "could", "they", "couldn't", "they'd", "did", "they'll", "didn't", "they're", "do", "they've", "does", "this", "doesn't", "those", "doing", "through", "don't", "to", "down", "too", "during", "under", "each", "until", "few", "up", "for", "very", "from", "was", "further", "wasn't", "had", "we", "hadn't", "we'd", "has", "we'll", "hasn't", "we're", "have", "we've", "haven't", "were", "having", "weren't", "he", "what", "he'd", "what's", "he'll", "when", "he's", "when's", "her", "where", "here", "where's", "here's", "which", "hers", "while", "herself", "who", "him", "who's", "himself", "whom", "his", "why", "how", "why's", "how's", "with", "i", "won't", "i'd", "would", "i'll", "wouldn't", "i'm", "you", "i've", "you'd", "if", "you'll", "in", "you're", "into", "you've", "is", "your", "isn't", "yours", "it", "yourself", "it's", "yourselves", "its", "nor", "itself", "not", "let's", "of", "me", "off", "more", "on", "mustn't", "my", "or", "myself", "other", "no", "ought", "ours", "our"]
 
 import re
 
@@ -97,7 +97,8 @@ class MatchMatrix:
         aff = ""
         for i, question in enumerate(self.__questions):
             for j, answer in enumerate(self.__answers):
-                aff += f"{self.__matrix[i][j]} "
+                # float (2 digits) to string
+                aff += f"{self.__matrix[i][j]:.2f} "
             aff += "\n"
         aff += "Questions:\n"
         for question in self.__questions:
@@ -128,6 +129,27 @@ class MatchMatrix:
                     self.__matrix[i][j] = 1 if question.text in answer.text else 0
                 else:
                     self.__matrix[i][j] = len(set(q_words).intersection(set(a_words)))
+    
+    def compute_matrix_words(self):
+        """important words in common between questions and answers"""
+        w_matrix = [[[] for _ in range(len(self.__answers))] for _ in range(len(self.__questions))]
+        for i, question in enumerate(self.__questions):
+            for j, answer in enumerate(self.__answers):
+                q_words = question.important_words
+                a_words = answer.important_words
+                w_matrix[i][j] = list(set(q_words).intersection(set(a_words)))
+        
+        # for each column, keep unique words
+        for j in range(len(self.__answers)):
+            column = [row[j] for row in w_matrix]
+            w_list_col = [word for row in column for word in row]
+            for i in range(len(self.__questions)):
+                w_list = w_matrix[i][j]
+                # keep only unique words (appear only once in the column)
+                w_matrix[i][j] = [word for word in w_list if w_list_col.count(word) == 1]
+                self.__matrix[i][j] = len(w_matrix[i][j])
+        
+
     
     def get_q_a_max_indexes(self, invert_duplicates: bool = False) -> Tuple[List[Tuple[int, int]], Dict[int, List[int]]]:
         """Return the couples (q, a) from the matrix"""
@@ -204,7 +226,7 @@ def split_sentence_between_words(sentence: str, substrings: List[str]) -> List[s
             if sep in inter_sentence:
                 index_sep = inter_sentence.index(sep) + last_end
                 indexes_sep.append(index_sep + 1)
-                last_end = index_sep + 1
+                last_end = end
                 break
         else:
             indexes_sep.append(start)
@@ -259,15 +281,22 @@ def match_answers_sentence(text_sentences: List[Sentence], answers: List[Sentenc
 def match_questions_sentence(text_sentences: List[Sentence], questions: List[Sentence]) -> List[Tuple[Sentence, Sentence]]:
     """Return the sentences in text that conntains words of the questions"""
     matched_matrix = MatchMatrix(questions, text_sentences)
-    matched_matrix.compute_matrix(substring=False)
-    print(matched_matrix)
+    matched_matrix.compute_matrix_words()
     couples, duplicate_a_couples = matched_matrix.get_q_a_max_indexes(invert_duplicates=True)
     res_couples = [couple for couple in couples if couple[0] not in duplicate_a_couples]
+    non_attributed_q = [i for i in range(len(questions)) if i not in [couple[0] for couple in res_couples]]
+    non_attributed_a = [i for i in range(len(questions)) if i not in [couple[1] for couple in res_couples]]
     for q_i, sts in duplicate_a_couples.items():
         for sts_i in sts:
             if sts_i not in [couple[1] for couple in res_couples]:
                 res_couples.append((q_i, sts_i))
+                non_attributed_a.remove(sts_i)
+                non_attributed_q.remove(q_i)
                 break
+    # fille the missing couples
+    for i in range(len(non_attributed_q)):
+        res_couples.append((non_attributed_q[i], non_attributed_a[i]))
+        
     return [(questions[q_i], text_sentences[sts_i]) for q_i, sts_i in res_couples]
 
     
@@ -286,7 +315,6 @@ def main() -> str:
     matched_q_text = match_questions_sentence(text_sentences, questions)
     dict_text_ans = {match[1].text: match[0].text for match in matched_ans_text}
     matched_qna = {match[0].text : dict_text_ans[match[1].text] for match in matched_q_text}
-    print(matched_qna)
     # result is one answer per question, in the correct order
     res = ""
     for question in questions:
