@@ -99,7 +99,6 @@ class MatchMatrix:
             for j, answer in enumerate(self.__answers):
                 aff += f"{self.__matrix[i][j]} "
             aff += "\n"
-        # now print the questions and the answers
         aff += "Questions:\n"
         for question in self.__questions:
             aff += f" - {question}\n"
@@ -145,13 +144,10 @@ class MatchMatrix:
                         duplicate_a_couples[i] = [j for j, e in enumerate(row) if e == max(row)]
         
         # remove duplicate couples if len key < 2
-        print("Couples: ", couples)
-        print("Duplicate couples: ", duplicate_a_couples)
         res_duplicate_a_couples = dict()
         for key, value in duplicate_a_couples.items():
             if len(value) >= 2:
                 res_duplicate_a_couples[key] = value
-        print("Res duplicate couples: ", res_duplicate_a_couples)
                                             
         return couples, res_duplicate_a_couples
 
@@ -159,12 +155,12 @@ class MatchMatrix:
 def split_paragraph_to_sentences(in_paragraph: str, separators: List[str] = [".", "!", "?"]) -> List[str]:
     """Split a paragraph to sentences"""
     sentences = []
-    paragraph = in_paragraph + " "
+    paragraph = in_paragraph + "  "
     sentence = ""
     for i in range(len(in_paragraph)):
         char = paragraph[i]
         sentence += char
-        if char in separators and paragraph[i+1] == " ":
+        if char in separators and paragraph[i+1] == " " and paragraph[i-2] not in [' ', '[', '(', '{']:
             sentences.append(sentence)
             sentence = ""
     return sentences
@@ -266,15 +262,12 @@ def match_questions_sentence(text_sentences: List[Sentence], questions: List[Sen
     matched_matrix.compute_matrix(substring=False)
     print(matched_matrix)
     couples, duplicate_a_couples = matched_matrix.get_q_a_max_indexes(invert_duplicates=True)
-    print(couples, duplicate_a_couples)
     res_couples = [couple for couple in couples if couple[0] not in duplicate_a_couples]
-    print(res_couples)
     for q_i, sts in duplicate_a_couples.items():
         for sts_i in sts:
             if sts_i not in [couple[1] for couple in res_couples]:
                 res_couples.append((q_i, sts_i))
                 break
-    print(res_couples)
     return [(questions[q_i], text_sentences[sts_i]) for q_i, sts_i in res_couples]
 
     
@@ -286,16 +279,18 @@ def match_questions_sentence(text_sentences: List[Sentence], questions: List[Sen
 
 # this program aims to match the questions with the answers given in the input text
 
-def main():
+def main() -> str:
     text, questions, answers = split_input(input_str)
     matched_ans_text = match_answers_sentence(text, answers)
     text_sentences = [match[1] for match in matched_ans_text]
     matched_q_text = match_questions_sentence(text_sentences, questions)
     dict_text_ans = {match[1].text: match[0].text for match in matched_ans_text}
-    matched_qna = [(match[0].text, dict_text_ans[match[1].text]) for match in matched_q_text]
-    for q, a in matched_qna:
-        print(f"Q: {q}\nA: {a}\n")
+    matched_qna = {match[0].text : dict_text_ans[match[1].text] for match in matched_q_text}
+    print(matched_qna)
+    # result is one answer per question, in the correct order
+    res = ""
+    for question in questions:
+        res += matched_qna[question.text] + "\n"
+    return res
     
-
-if __name__ == "__main__":
-    main()
+print(main())
